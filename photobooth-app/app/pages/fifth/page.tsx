@@ -83,15 +83,6 @@ function themeStyles(theme: ThemeKey) {
   }
 }
 
-function downloadDataUrl(filename: string, dataUrl: string) {
-  const a = document.createElement("a");
-  a.href = dataUrl;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-}
-
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
@@ -110,6 +101,70 @@ function photoFilterCss(s: SliderState) {
 
 function fadeOverlayOpacity(fade: number) {
   return clamp(fade, 0, 0.35);
+}
+
+function isIOSDevice() {
+  if (typeof navigator === "undefined") return false;
+  // iPadOS can report as MacIntel with touch points
+  const ua = navigator.userAgent || "";
+  const isAppleMobile = /iPad|iPhone|iPod/.test(ua);
+  const isIPadOS = navigator.platform === "MacIntel" && (navigator as any).maxTouchPoints > 1;
+  return isAppleMobile || isIPadOS;
+}
+
+function downloadBlob(filename: string, blob: Blob) {
+  const url = URL.createObjectURL(blob);
+
+  // iOS Safari often blocks <a download>. Best UX: open image and let user Share/Save.
+  if (isIOSDevice()) {
+    window.open(url, "_blank", "noopener,noreferrer");
+    // revoke later; give iOS time to load it
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return;
+  }
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+async function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  return await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (!blob) reject(new Error("canvas.toBlob() returned null"));
+      else resolve(blob);
+    }, "image/png");
+  });
+}
+
+async function loadImage(src: string): Promise<HTMLImageElement> {
+  return await new Promise<HTMLImageElement>((resolve, reject) => {
+    const img = new Image();
+
+    // If src is cross-origin (https://...), this helps *if* the server allows CORS.
+    // If the server doesn't send proper CORS headers, canvas export will still fail.
+    img.crossOrigin = "anonymous";
+
+    // Hint to decode async where supported
+    (img as any).decoding = "async";
+
+    img.onload = async () => {
+      // Wait for decoding when possible (helps on some mobile devices)
+      try {
+        if ("decode" in img) await img.decode();
+      } catch {
+        // ignore decode errors; onload already fired
+      }
+      resolve(img);
+    };
+    img.onerror = () => reject(new Error("Failed to load image"));
+
+    img.src = src;
+  });
 }
 
 export default function Fifth() {
@@ -306,24 +361,14 @@ export default function Fifth() {
       const cellW = Math.floor((contentW - gap * (cols - 1)) / cols);
       const cellH = Math.floor((contentH - gap * (rows - 1)) / rows);
 
-      function clipRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
-        ctx.beginPath();
-        ctx.rect(x, y, w, h);
-        ctx.closePath();
-        ctx.clip();
-        }
+      function clipRect(ctx2: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
+        ctx2.beginPath();
+        ctx2.rect(x, y, w, h);
+        ctx2.closePath();
+        ctx2.clip();
+      }
 
-      const images = await Promise.all(
-        data.favorites.slice(0, slots).map(
-          (src) =>
-            new Promise<HTMLImageElement>((resolve, reject) => {
-              const img = new Image();
-              img.onload = () => resolve(img);
-              img.onerror = () => reject(new Error("Failed to load image"));
-              img.src = src;
-            })
-        )
-      );
+      const images = await Promise.all(data.favorites.slice(0, slots).map((src) => loadImage(src)));
 
       let imgIndex = 0;
       for (let r = 0; r < rows; r++) {
@@ -388,10 +433,11 @@ export default function Fifth() {
         ctx.fillText(date, W / 2, dateY);
       }
 
-      downloadDataUrl("litrato-strip.png", canvas.toDataURL("image/png"));
+      const blob = await canvasToPngBlob(canvas);
+      downloadBlob("litrato-strip.png", blob);
     } catch (e) {
       console.error(e);
-      alert("Export failed. Check console for details.");
+      alert("Export failed. If you're on iPhone/iPad, it may open in a new tab—use Share → Save Image.");
     } finally {
       setExporting(false);
     }
@@ -443,7 +489,6 @@ export default function Fifth() {
           </div>
         </div>
 
-        {/* ✅ 3 columns on desktop: (1) theme+filters (2) finetune+date (3) preview */}
         <div className="mt-6 grid grid-cols-1 lg:grid-cols-[360px_360px_1fr] gap-6 items-start">
           {/* Column 1 */}
           <section className="rounded-3xl border border-gray-200/70 bg-white p-5 shadow-[0_1px_0_rgba(0,0,0,0.03)]">
@@ -524,7 +569,7 @@ export default function Fifth() {
             </div>
           </section>
 
-          {/* Column 3 (Preview) */}
+          {/* Column 3 */}
           <section className="flex justify-center lg:justify-start">
             <div className="flex flex-col items-center lg:items-start">
               <div
@@ -593,10 +638,7 @@ export default function Fifth() {
                     <div
                       className="mt-1 text-[9px] tabular-nums"
                       style={{
-                        color:
-                          themeVars.ink === "#ffffff"
-                            ? "rgba(255,255,255,0.78)"
-                            : "rgba(17,24,39,0.58)",
+                        color: themeVars.ink === "#ffffff" ? "rgba(255,255,255,0.78)" : "rgba(17,24,39,0.58)",
                       }}
                     >
                       {new Date(data.createdAt || Date.now()).toLocaleDateString()}
