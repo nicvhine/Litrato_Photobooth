@@ -390,7 +390,7 @@ export default function Third() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-6">
           <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
             <div className="text-lg text-gray-900">
-              You only have 8 shots. Make the best out of it.
+              You only have 8 shots. Make the most out of it.
             </div>
 
             <div className="mt-5 flex justify-center">
