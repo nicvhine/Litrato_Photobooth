@@ -244,7 +244,6 @@ export default function Fourth() {
                 className={[
                   cfg.stripWidth,
                   cfg.stripAspect,
-                  cfg.outerRadius,
                   "bg-white border border-gray-200 shadow-sm",
                   cfg.paperPadding,
                   "relative",
@@ -260,7 +259,6 @@ export default function Fourth() {
                         key={slotIndex}
                         className={[
                           "relative overflow-hidden bg-gray-100 border border-black/10",
-                          cfg.slotRadius,
                         ].join(" ")}
                       >
                         {src ? (

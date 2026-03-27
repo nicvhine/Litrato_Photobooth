@@ -306,12 +306,12 @@ export default function Fifth() {
       const cellW = Math.floor((contentW - gap * (cols - 1)) / cols);
       const cellH = Math.floor((contentH - gap * (rows - 1)) / rows);
 
-      function clipRect(x: number, y: number, w: number, h: number) {
+      function clipRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) {
         ctx.beginPath();
         ctx.rect(x, y, w, h);
         ctx.closePath();
         ctx.clip();
-      }
+        }
 
       const images = await Promise.all(
         data.favorites.slice(0, slots).map(
@@ -337,7 +337,7 @@ export default function Fifth() {
           ctx.fillStyle = "rgba(0,0,0,0.06)";
           ctx.fillRect(x, y, cellW, cellH);
 
-          clipRect(x, y, cellW, cellH);
+          clipRect(ctx, x, y, cellW, cellH);
 
           applyCanvasFilter(ctx, sliders);
 
