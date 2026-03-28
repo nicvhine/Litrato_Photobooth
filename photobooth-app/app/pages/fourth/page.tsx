@@ -13,27 +13,29 @@ type SavedFrame = {
   slots: number;
   title?: string;
   subtitle?: string;
-  previewClassName?: string; // stored from second.tsx
+  previewClassName?: string;
 };
 
 function stripConfig(frameId: string) {
-  // Photostrip sizes (Korean booth vibe)
   if (frameId === "4-vertical" || frameId === "2-vertical") {
     return {
       stripWidth: "w-[200px] sm:w-[215px]",
-      stripAspect: "aspect-[1/3]", // tall narrow
-      paperPadding: "px-[12px] pt-[12px] pb-[44px]", // big bottom space for logo
+      stripAspect: "aspect-[1/3]",
+      paperPadding: "px-[12px] pt-[12px] pb-[44px]",
       defaultGrid: "grid grid-rows-4 grid-cols-1 gap-2",
     };
   }
 
-  // Grid frames / single print
   return {
     stripWidth: "w-[260px] sm:w-[290px]",
     stripAspect: "aspect-[2/3]",
     paperPadding: "px-3 pt-3 pb-10",
     defaultGrid: "grid grid-rows-2 grid-cols-2 gap-2",
   };
+}
+
+function cx(...parts: Array<string | false | null | undefined>) {
+  return parts.filter(Boolean).join(" ");
 }
 
 export default function Fourth() {
@@ -44,7 +46,6 @@ export default function Fourth() {
   const [selected, setSelected] = useState<number[]>([]);
 
   useEffect(() => {
-    // Load frame
     try {
       const raw = localStorage.getItem(FRAME_KEY);
       const parsed = raw ? (JSON.parse(raw) as SavedFrame) : null;
@@ -53,7 +54,6 @@ export default function Fourth() {
       setFrame(null);
     }
 
-    // Load shots
     try {
       const rawShots = localStorage.getItem(SHOTS_KEY);
       const parsedShots = rawShots ? (JSON.parse(rawShots) as string[]) : [];
@@ -79,7 +79,6 @@ export default function Fourth() {
     setSelected((prev) => {
       const exists = prev.includes(i);
       if (exists) return prev.filter((x) => x !== i);
-
       if (prev.length >= slots) return prev;
       return [...prev, i];
     });
@@ -97,6 +96,10 @@ export default function Fourth() {
       [next[slotIndex], next[to]] = [next[to], next[slotIndex]];
       return next;
     });
+  }
+
+  function clearSelection() {
+    setSelected([]);
   }
 
   function saveAndContinue() {
@@ -117,247 +120,271 @@ export default function Fourth() {
 
   if (!frame || !slots) {
     return (
-      <div className="min-h-screen bg-white px-4 py-6">
+      <main className="min-h-screen bg-gradient-to-b from-white to-gray-50 px-4 py-8">
         <div className="mx-auto w-full max-w-3xl">
-          <h1 className="text-xl font-bold">Missing frame selection</h1>
+          <h1 className="text-xl font-bold text-gray-900">Missing frame selection</h1>
           <p className="mt-1 text-sm text-gray-600">
             Please go back and choose a frame first.
           </p>
-          <div className="mt-4">
+          <div className="mt-5">
             <Link
               href="/pages/second"
-              className="text-sm text-gray-600 hover:text-gray-900 underline underline-offset-4"
+              className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
             >
-              Go to frames
+              ← Go to frames
             </Link>
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
   if (!shots.length) {
     return (
-      <div className="min-h-screen bg-white px-4 py-6">
+      <main className="min-h-screen bg-gradient-to-b from-white to-gray-50 px-4 py-8">
         <div className="mx-auto w-full max-w-3xl">
-          <h1 className="text-xl font-bold">No shots found</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Please take your photos again.
-          </p>
-          <div className="mt-4 flex gap-3">
+          <h1 className="text-xl font-bold text-gray-900">No shots found</h1>
+          <p className="mt-1 text-sm text-gray-600">Please take your photos again.</p>
+          <div className="mt-5 flex flex-wrap gap-3">
             <Link
               href="/pages/third"
-              className="inline-flex items-center justify-center rounded-full px-4 py-2 text-sm font-semibold bg-red-600 text-white hover:bg-red-700"
+              className="inline-flex items-center justify-center rounded-full bg-red-600 px-5 py-2 text-sm font-semibold text-white hover:bg-red-700 shadow-sm shadow-red-600/15"
             >
               Retake
             </Link>
             <Link
               href="/pages/second"
-              className="self-center text-sm text-gray-600 hover:text-gray-900 underline underline-offset-4"
+              className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-white px-5 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
             >
               Back
             </Link>
           </div>
         </div>
-      </div>
+      </main>
     );
   }
 
   const cfg = stripConfig(frame.id);
   const previewClassName = frame.previewClassName ?? cfg.defaultGrid;
 
+  const atLimit = selected.length >= slots;
+  const remaining = Math.max(0, slots - selected.length);
+
   return (
-    <div className="min-h-screen bg-white px-4 py-6">
+    <main className="min-h-screen bg-gradient-to-b from-white to-gray-50 px-4 py-8">
       <div className="mx-auto w-full max-w-6xl">
         {/* Header */}
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold">
+        <header className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-[240px]">
+            <Link
+              href="/pages/third"
+              className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
+            >
+              <span aria-hidden="true">←</span>
+              Back to camera
+            </Link>
+
+            <h1 className="mt-3 text-2xl font-extrabold tracking-tight text-gray-900">
               Pick {slots} {slots === 1 ? "photo" : "photos"}
             </h1>
-            <p className="mt-1 text-xs text-gray-500">
-              Selected: {selected.length}/{slots}
+
+            <p className="mt-1 text-sm text-gray-600">
+              {remaining > 0 ? (
+                <>
+                  Choose{" "}
+                  <span className="font-semibold text-gray-900">{remaining}</span>{" "}
+                  more.
+                </>
+              ) : (
+                <>
+                  Selection complete.{" "}
+                  <span className="font-semibold text-gray-900">Continue</span> when
+                  ready.
+                </>
+              )}
             </p>
           </div>
-        </div>
 
-        {/* Two-pane layout */}
-        <div className="mt-5 grid grid-cols-1 lg:grid-cols-[1fr_300px] gap-6 items-start">
-          {/* LEFT: all shots (smaller thumbs) */}
-        <div>
-        <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-2 gap-1">
-            {shots.map((src, i) => {
-            const isSelected = selected.includes(i);
-            const order = isSelected ? selected.indexOf(i) + 1 : null;
-            const atLimit = !isSelected && selected.length >= slots;
+          {/* Quick actions */}
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={clearSelection}
+              disabled={selected.length === 0}
+              className={cx(
+                "rounded-full border px-4 py-2 text-sm font-semibold transition",
+                selected.length === 0
+                  ? "border-gray-200 bg-white text-gray-400 cursor-not-allowed"
+                  : "border-gray-200 bg-white text-gray-800 hover:bg-gray-50"
+              )}
+            >
+              Clear
+            </button>
 
-            return (
-                <button
-                key={i}
-                type="button"
-                onClick={() => toggle(i)}
-                disabled={atLimit}
-                aria-pressed={isSelected}
-                className={[
-                    "relative overflow-hidden rounded-md border transition-all focus:outline-none focus:ring-2 focus:ring-red-300",
-                    isSelected
-                    ? "border-red-600 ring-1 ring-red-200"
-                    : "border-gray-200 hover:shadow-sm",
-                    atLimit ? "opacity-50 cursor-not-allowed" : "",
-                ].join(" ")}
-                title={
-                    isSelected
-                    ? "Remove from favorites"
-                    : atLimit
-                        ? `You can only pick ${slots}`
-                        : "Add to favorites"
-                }
-                >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                    src={src}
-                    alt={`Shot ${i + 1}`}
-                    // ✅ smaller + less “zoom” cropping than 3/4
-                    className="w-full aspect-[4/3] object-cover max-h-40"
-                />
+            <button
+              type="button"
+              onClick={saveAndContinue}
+              disabled={!canContinue}
+              className={cx(
+                "rounded-full px-6 py-2 text-sm font-semibold transition-all",
+                canContinue
+                  ? "bg-red-600 text-white hover:bg-red-700 shadow-sm shadow-red-600/15"
+                  : "bg-gray-200 text-gray-500 cursor-not-allowed"
+              )}
+            >
+              Continue
+            </button>
+          </div>
+        </header>
 
-                <div className="absolute top-1 left-1 rounded-full bg-black/60 text-white text-[9px] px-1 py-0.5">
-                    {i + 1}
+        {/* Layout */}
+        <div className="mt-6 grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6 items-start">
+          {/* LEFT: shots */}
+          <section>
+            <div className="rounded-3xl border border-gray-200 bg-white p-3 sm:p-4 shadow-sm">
+              <div className="flex items-center justify-between gap-3 px-1 pb-3">
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">All shots</div>
+                  <div className="text-xs text-gray-500">
+                    Tap to select. Tap again to remove.
+                  </div>
                 </div>
 
-                {isSelected && (
-                    <div className="absolute top-1 right-1 rounded-full bg-red-600 text-white text-[9px] font-bold w-5 h-5 flex items-center justify-center">
-                    {order}
-                    </div>
+                {atLimit && (
+                  <div className="rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 border border-red-100">
+                    Limit reached
+                  </div>
                 )}
-                </button>
-            );
-            })}
-        </div>
-        </div>
+              </div>
 
-          {/* RIGHT: photostrip preview (no gray card background) */}
-          <aside className="lg:sticky lg:top-6">
-            <div className="flex flex-col items-center">
-              {/* The strip itself (white only, like a real print) */}
-              <div
-                className={[
-                  cfg.stripWidth,
-                  cfg.stripAspect,
-                  "bg-white border border-gray-200 shadow-sm",
-                  cfg.paperPadding,
-                  "relative",
-                ].join(" ")}
-              >
-                {/* Photos grid */}
-                <div className={[previewClassName, "h-full w-full"].join(" ")}>
-                  {Array.from({ length: slots }).map((_, slotIndex) => {
-                    const src = favorites[slotIndex];
+              <div className="grid grid-cols-4 sm:grid-cols-4 lg:grid-cols-3 gap-2">
+                {shots.map((src, i) => {
+                  const isSelected = selected.includes(i);
+                  const order = isSelected ? selected.indexOf(i) + 1 : null;
+                  const disabled = !isSelected && selected.length >= slots;
 
-                    return (
-                      <div
-                        key={slotIndex}
-                        className={[
-                          "relative overflow-hidden bg-gray-100 border border-black/10",
-                        ].join(" ")}
-                      >
-                        {src ? (
-                          <button
-                            type="button"
-                            onClick={() => removeBySlot(slotIndex)}
-                            className="group block w-full h-full"
-                            title="Remove from strip"
-                          >
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={src}
-                              alt={`Favorite ${slotIndex + 1}`}
-                              className="w-full h-full object-cover"
-                            />
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => toggle(i)}
+                      disabled={disabled}
+                      aria-pressed={isSelected}
+                      className={cx(
+                        "relative overflow-hidden rounded-xl border transition-all focus:outline-none focus:ring-2 focus:ring-red-300",
+                        isSelected
+                          ? "border-red-600 ring-1 ring-red-200"
+                          : "border-gray-200 hover:shadow-sm hover:border-gray-300",
+                        disabled && "opacity-55 cursor-not-allowed"
+                      )}
+                      title={
+                        isSelected
+                          ? "Remove from favorites"
+                          : disabled
+                            ? `You can only pick ${slots}`
+                            : "Add to favorites"
+                      }
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={src}
+                        alt={`Shot ${i + 1}`}
+                        className="w-full aspect-[4/3] object-cover"
+                        draggable={false}
+                      />
 
-                            {/* subtle hover */}
-                            <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition bg-black/15" />
-
-                            {/* slot number */}
-                            <div className="absolute top-1.5 left-1.5 rounded-full bg-black/60 text-white text-[10px] px-1.5 py-0.5">
-                              {slotIndex + 1}
-                            </div>
-
-                            {/* reorder controls */}
-                            <div className="absolute bottom-1.5 right-1.5 flex gap-1 opacity-0 group-hover:opacity-100 transition">
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  move(slotIndex, -1);
-                                }}
-                                disabled={slotIndex === 0}
-                                className={[
-                                  "rounded-md bg-white/90 border border-gray-200 px-2 py-1 text-[10px] hover:bg-white",
-                                  slotIndex === 0 ? "opacity-40 cursor-not-allowed" : "",
-                                ].join(" ")}
-                                title="Move up"
-                              >
-                                ↑
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  move(slotIndex, 1);
-                                }}
-                                disabled={slotIndex === selected.length - 1}
-                                className={[
-                                  "rounded-md bg-white/90 border border-gray-200 px-2 py-1 text-[10px] hover:bg-white",
-                                  slotIndex === selected.length - 1
-                                    ? "opacity-40 cursor-not-allowed"
-                                    : "",
-                                ].join(" ")}
-                                title="Move down"
-                              >
-                                ↓
-                              </button>
-                            </div>
-                          </button>
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
-                            Slot {slotIndex + 1}
-                          </div>
-                        )}
+                      {/* shot number */}
+                      <div className="absolute top-1.5 left-1.5 rounded-full bg-black/60 text-white text-[10px] px-1.5 py-0.5">
+                        {i + 1}
                       </div>
-                    );
-                  })}
-                </div>
 
-                {/* Logo area bottom (bigger space already reserved via pb-*) */}
-                <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center">
-                  <div className="text-[11px] tracking-[0.35em] font-semibold text-gray-800">
-                    LITRATO.
+                      {/* selected order badge */}
+                      {isSelected && (
+                        <div className="absolute top-1.5 right-1.5 rounded-full bg-red-600 text-white text-[10px] font-bold w-6 h-6 flex items-center justify-center shadow-sm">
+                          {order}
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+
+          {/* RIGHT: strip preview */}
+          <aside className="lg:sticky lg:top-6">
+            <div className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="text-sm font-semibold text-gray-900">Preview</div>
+                  <div className="text-xs text-gray-500">
+                    Click to remove
                   </div>
                 </div>
               </div>
 
-              {/* Actions under the strip (no background card) */}
-              <div className="mt-4 w-full flex items-center justify-end">
-                <button
-                  type="button"
-                  onClick={saveAndContinue}
-                  disabled={!canContinue}
-                  className={[
-                    "justify-end rounded-full px-6 py-2 text-sm font-semibold transition-all",
-                    canContinue
-                      ? "bg-red-600 text-white hover:bg-red-700 shadow-sm"
-                      : "bg-gray-200 text-gray-500 cursor-not-allowed",
-                  ].join(" ")}
+              <div className="mt-4 flex flex-col items-center">
+                <div
+                  className={cx(
+                    cfg.stripWidth,
+                    cfg.stripAspect,
+                    "bg-white border border-gray-200 shadow-sm",
+                    cfg.paperPadding,
+                    "relative"
+                  )}
                 >
-                  Continue
-                </button>
-              </div>
+                  <div className={cx(previewClassName, "h-full w-full")}>
+                    {Array.from({ length: slots }).map((_, slotIndex) => {
+                      const src = favorites[slotIndex];
 
+                      return (
+                        <div
+                          key={slotIndex}
+                          className="relative overflow-hidden bg-gray-100 border border-black/10"
+                        >
+                          {src ? (
+                            <button
+                              type="button"
+                              onClick={() => removeBySlot(slotIndex)}
+                              className="group block w-full h-full"
+                              title="Remove from strip"
+                            >
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img
+                                src={src}
+                                alt={`Favorite ${slotIndex + 1}`}
+                                className="w-full h-full object-cover"
+                                draggable={false}
+                              />
+
+                              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition bg-black/15" />
+
+                              <div className="absolute top-1.5 left-1.5 rounded-full bg-black/60 text-white text-[10px] px-1.5 py-0.5">
+                                {slotIndex + 1}
+                              </div>
+                            </button>
+                          ) : (
+                            <div className="w-full h-full flex flex-col items-center justify-center text-xs text-gray-400">
+                              <div className="font-semibold">Slot {slotIndex + 1}</div>
+                              <div className="mt-1">Pick a photo</div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="absolute bottom-3 left-0 right-0 flex items-center justify-center">
+                    <div className="text-[11px] tracking-[0.35em] font-semibold text-gray-800">
+                      LITRATO.
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </aside>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

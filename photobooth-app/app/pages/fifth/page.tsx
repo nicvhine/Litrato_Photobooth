@@ -76,7 +76,7 @@ function themeStyles(theme: ThemeKey) {
     case "sky":
       return { paper: "#e8f2ff", ink: "#111827" };
     case "gray":
-      return { paper: "#5d5a5a", ink: "#111827" };
+      return { paper: "#5d5a5a", ink: "#ffffff" };
     case "classic":
     default:
       return { paper: "#ffffff", ink: "#111827" };
@@ -105,20 +105,44 @@ function fadeOverlayOpacity(fade: number) {
 
 function isIOSDevice() {
   if (typeof navigator === "undefined") return false;
-  // iPadOS can report as MacIntel with touch points
   const ua = navigator.userAgent || "";
   const isAppleMobile = /iPad|iPhone|iPod/.test(ua);
   const isIPadOS = navigator.platform === "MacIntel" && (navigator as any).maxTouchPoints > 1;
   return isAppleMobile || isIPadOS;
 }
 
-function downloadBlob(filename: string, blob: Blob) {
+function isAndroidDevice() {
+  if (typeof navigator === "undefined") return false;
+  return /Android/i.test(navigator.userAgent || "");
+}
+
+/**
+ * Best-effort download for iOS + Android + desktop:
+ * - If Web Share (with files) is available: use it (best UX on iOS/Android).
+ * - Else if iOS: open in new tab so user can Share/Save.
+ * - Else: <a download> normal download.
+ */
+async function downloadImageEverywhere(filename: string, blob: Blob) {
+  const file = new File([blob], filename, { type: blob.type || "image/png" });
+
+  try {
+    const navAny = navigator as any;
+    if (navAny?.canShare?.({ files: [file] }) && navAny?.share) {
+      await navAny.share({
+        files: [file],
+        title: "LITRATO",
+        text: "Save your photobooth strip",
+      });
+      return;
+    }
+  } catch {
+    // ignore and fallback
+  }
+
   const url = URL.createObjectURL(blob);
 
-  // iOS Safari often blocks <a download>. Best UX: open image and let user Share/Save.
   if (isIOSDevice()) {
     window.open(url, "_blank", "noopener,noreferrer");
-    // revoke later; give iOS time to load it
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
     return;
   }
@@ -129,7 +153,18 @@ function downloadBlob(filename: string, blob: Blob) {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+  if (isAndroidDevice()) {
+    setTimeout(() => {
+      try {
+        window.open(url, "_blank", "noopener,noreferrer");
+      } catch {
+        // ignore
+      }
+    }, 250);
+  }
+
+  setTimeout(() => URL.revokeObjectURL(url), 4000);
 }
 
 async function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
@@ -144,27 +179,24 @@ async function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
 async function loadImage(src: string): Promise<HTMLImageElement> {
   return await new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image();
-
-    // If src is cross-origin (https://...), this helps *if* the server allows CORS.
-    // If the server doesn't send proper CORS headers, canvas export will still fail.
     img.crossOrigin = "anonymous";
-
-    // Hint to decode async where supported
     (img as any).decoding = "async";
 
     img.onload = async () => {
-      // Wait for decoding when possible (helps on some mobile devices)
       try {
         if ("decode" in img) await img.decode();
       } catch {
-        // ignore decode errors; onload already fired
+        // ignore
       }
       resolve(img);
     };
     img.onerror = () => reject(new Error("Failed to load image"));
-
     img.src = src;
   });
+}
+
+function cx(...parts: Array<string | false | null | undefined>) {
+  return parts.filter(Boolean).join(" ");
 }
 
 export default function Fifth() {
@@ -184,39 +216,83 @@ export default function Fifth() {
       {
         key: "soft",
         label: "Soft",
-        sliders: { brightness: 1.05, contrast: 0.98, saturate: 0.98, warmth: 8, fade: 0.1, grain: 0.08 },
+        sliders: {
+          brightness: 1.05,
+          contrast: 0.98,
+          saturate: 0.98,
+          warmth: 8,
+          fade: 0.1,
+          grain: 0.08,
+        },
       },
       {
         key: "warm",
         label: "Warm",
-        sliders: { brightness: 1.03, contrast: 1.05, saturate: 1.1, warmth: 18, fade: 0.06, grain: 0.1 },
+        sliders: {
+          brightness: 1.03,
+          contrast: 1.05,
+          saturate: 1.1,
+          warmth: 18,
+          fade: 0.06,
+          grain: 0.1,
+        },
       },
       {
         key: "cool",
         label: "Cool",
-        sliders: { brightness: 1.02, contrast: 1.06, saturate: 1.05, warmth: -18, fade: 0.06, grain: 0.1 },
+        sliders: {
+          brightness: 1.02,
+          contrast: 1.06,
+          saturate: 1.05,
+          warmth: -18,
+          fade: 0.06,
+          grain: 0.1,
+        },
       },
       {
         key: "vintage",
         label: "Vintage",
-        sliders: { brightness: 1.04, contrast: 0.95, saturate: 0.9, warmth: 14, fade: 0.16, grain: 0.18 },
+        sliders: {
+          brightness: 1.04,
+          contrast: 0.95,
+          saturate: 0.9,
+          warmth: 14,
+          fade: 0.16,
+          grain: 0.18,
+        },
       },
       {
         key: "contrast",
         label: "Pop",
-        sliders: { brightness: 1.0, contrast: 1.18, saturate: 1.12, warmth: 6, fade: 0.03, grain: 0.08 },
+        sliders: {
+          brightness: 1.0,
+          contrast: 1.18,
+          saturate: 1.12,
+          warmth: 6,
+          fade: 0.03,
+          grain: 0.08,
+        },
       },
       {
         key: "bw",
         label: "B&W",
-        sliders: { brightness: 1.02, contrast: 1.08, saturate: 0, warmth: 0, fade: 0.08, grain: 0.14 },
+        sliders: {
+          brightness: 1.02,
+          contrast: 1.08,
+          saturate: 0,
+          warmth: 0,
+          fade: 0.08,
+          grain: 0.14,
+        },
       },
     ],
     []
   );
 
   const [activePreset, setActivePreset] = useState<FilterKey>("soft");
-  const [sliders, setSliders] = useState<SliderState>(() => presets.find((p) => p.key === "soft")!.sliders);
+  const [sliders, setSliders] = useState<SliderState>(
+    () => presets.find((p) => p.key === "soft")!.sliders
+  );
 
   const [exporting, setExporting] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -264,7 +340,13 @@ export default function Fifth() {
     applyPreset(activePreset);
   }
 
-  function drawTrackedText(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, trackingPx: number) {
+  function drawTrackedText(
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    x: number,
+    y: number,
+    trackingPx: number
+  ) {
     if (!text) return;
     const chars = Array.from(text);
     const widths = chars.map((ch) => ctx.measureText(ch).width);
@@ -434,14 +516,26 @@ export default function Fifth() {
       }
 
       const blob = await canvasToPngBlob(canvas);
-      downloadBlob("litrato-strip.png", blob);
+      await downloadImageEverywhere("litrato-strip.png", blob);
     } catch (e) {
       console.error(e);
-      alert("Export failed. If you're on iPhone/iPad, it may open in a new tab—use Share → Save Image.");
+      alert(
+        "Export failed. On iPhone/iPad/Android, your browser may show a share sheet instead of a direct download."
+      );
     } finally {
       setExporting(false);
     }
   }
+
+  const downloadHint = useMemo(() => {
+    if (typeof navigator === "undefined") return "";
+    const navAny = navigator as any;
+    const sharePossible = !!navAny?.canShare && !!navAny?.share;
+    if (sharePossible) return "Tip: your phone will open a Share sheet—choose Save Image / Files.";
+    if (isIOSDevice()) return "Tip: on iPhone/iPad it may open in a new tab—use Share → Save Image.";
+    if (isAndroidDevice()) return "Tip: on Android it should download or open—use Save/Download if prompted.";
+    return "";
+  }, []);
 
   if (!data || !frame || !cfg) {
     return (
@@ -450,7 +544,10 @@ export default function Fifth() {
           <h1 className="text-xl font-semibold text-gray-900">Nothing to decorate</h1>
           <p className="mt-1 text-sm text-gray-600">Go back and select your favorites first.</p>
           <div className="mt-4">
-            <Link href="/pages/fourth" className="text-sm text-gray-700 hover:text-gray-900 underline underline-offset-4">
+            <Link
+              href="/pages/fourth"
+              className="text-sm text-gray-700 hover:text-gray-900 underline underline-offset-4"
+            >
               Back to selection
             </Link>
           </div>
@@ -468,10 +565,14 @@ export default function Fifth() {
           <div>
             <div className="text-xs tracking-widest text-gray-500">DECORATE</div>
             <h1 className="mt-2 text-3xl font-semibold text-gray-900">Finish your strip</h1>
+            {downloadHint ? <p className="mt-2 text-xs text-gray-500">{downloadHint}</p> : null}
           </div>
 
           <div className="flex items-center gap-3">
-            <Link href="/pages/fourth" className="text-sm text-gray-700 hover:text-gray-900 underline underline-offset-4">
+            <Link
+              href="/pages/fourth"
+              className="text-sm text-gray-700 hover:text-gray-900 underline underline-offset-4"
+            >
               Back
             </Link>
 
@@ -479,18 +580,19 @@ export default function Fifth() {
               type="button"
               onClick={exportPNG}
               disabled={exporting}
-              className={[
+              className={cx(
                 "rounded-full px-5 py-2 text-sm font-semibold transition",
-                exporting ? "bg-gray-200 text-gray-500 cursor-not-allowed" : "bg-red-600 text-white hover:bg-red-700 shadow-sm",
-              ].join(" ")}
+                exporting
+                  ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+                  : "bg-red-600 text-white hover:bg-red-700 shadow-sm shadow-red-600/15"
+              )}
             >
-              {exporting ? "Exporting..." : "Download PNG"}
+              {exporting ? "Exporting..." : "Download / Share"}
             </button>
           </div>
         </div>
 
         <div className="mt-6 grid grid-cols-1 lg:grid-cols-[360px_360px_1fr] gap-6 items-start">
-          {/* Column 1 */}
           <section className="rounded-3xl border border-gray-200/70 bg-white p-5 shadow-[0_1px_0_rgba(0,0,0,0.03)]">
             <div className="text-sm font-medium text-gray-900">Theme & filters</div>
 
@@ -502,10 +604,10 @@ export default function Fifth() {
                     key={t}
                     type="button"
                     onClick={() => setTheme(t)}
-                    className={[
+                    className={cx(
                       "rounded-xl border px-3 py-2 text-sm capitalize transition",
-                      theme === t ? "border-red-600 ring-2 ring-red-200" : "border-gray-200 hover:bg-gray-50",
-                    ].join(" ")}
+                      theme === t ? "border-red-600 ring-2 ring-red-200" : "border-gray-200 hover:bg-gray-50"
+                    )}
                   >
                     {t}
                   </button>
@@ -521,10 +623,12 @@ export default function Fifth() {
                     key={p.key}
                     type="button"
                     onClick={() => applyPreset(p.key)}
-                    className={[
+                    className={cx(
                       "rounded-xl border px-3 py-2 text-sm transition",
-                      activePreset === p.key ? "border-red-600 ring-2 ring-red-200" : "border-gray-200 hover:bg-gray-50",
-                    ].join(" ")}
+                      activePreset === p.key
+                        ? "border-red-600 ring-2 ring-red-200"
+                        : "border-gray-200 hover:bg-gray-50"
+                    )}
                   >
                     {p.label}
                   </button>
@@ -533,7 +637,6 @@ export default function Fifth() {
             </div>
           </section>
 
-          {/* Column 2 */}
           <section className="rounded-3xl border border-gray-200/70 bg-white p-5 shadow-[0_1px_0_rgba(0,0,0,0.03)]">
             <div className="text-sm font-medium text-gray-900">Fine tune</div>
 
@@ -550,18 +653,66 @@ export default function Fifth() {
               </div>
 
               <div className="mt-3 space-y-3">
-                <Slider label="Brightness" min={0.7} max={1.3} step={0.01} value={sliders.brightness} onChange={(v) => setSliders((s) => ({ ...s, brightness: v }))} />
-                <Slider label="Contrast" min={0.7} max={1.3} step={0.01} value={sliders.contrast} onChange={(v) => setSliders((s) => ({ ...s, contrast: v }))} />
-                <Slider label="Saturation" min={0} max={1.6} step={0.01} value={sliders.saturate} onChange={(v) => setSliders((s) => ({ ...s, saturate: v }))} />
-                <Slider label="Warmth" min={-25} max={25} step={1} value={sliders.warmth} onChange={(v) => setSliders((s) => ({ ...s, warmth: v }))} />
-                <Slider label="Fade" min={0} max={0.35} step={0.01} value={sliders.fade} onChange={(v) => setSliders((s) => ({ ...s, fade: v }))} />
-                <Slider label="Grain" min={0} max={0.35} step={0.01} value={sliders.grain} onChange={(v) => setSliders((s) => ({ ...s, grain: v }))} />
+                <Slider
+                  label="Brightness"
+                  min={0.7}
+                  max={1.3}
+                  step={0.01}
+                  value={sliders.brightness}
+                  onChange={(v) => setSliders((s) => ({ ...s, brightness: v }))}
+                />
+                <Slider
+                  label="Contrast"
+                  min={0.7}
+                  max={1.3}
+                  step={0.01}
+                  value={sliders.contrast}
+                  onChange={(v) => setSliders((s) => ({ ...s, contrast: v }))}
+                />
+                <Slider
+                  label="Saturation"
+                  min={0}
+                  max={1.6}
+                  step={0.01}
+                  value={sliders.saturate}
+                  onChange={(v) => setSliders((s) => ({ ...s, saturate: v }))}
+                />
+                <Slider
+                  label="Warmth"
+                  min={-25}
+                  max={25}
+                  step={1}
+                  value={sliders.warmth}
+                  onChange={(v) => setSliders((s) => ({ ...s, warmth: v }))}
+                />
+                <Slider
+                  label="Fade"
+                  min={0}
+                  max={0.35}
+                  step={0.01}
+                  value={sliders.fade}
+                  onChange={(v) => setSliders((s) => ({ ...s, fade: v }))}
+                />
+                <Slider
+                  label="Grain"
+                  min={0}
+                  max={0.35}
+                  step={0.01}
+                  value={sliders.grain}
+                  onChange={(v) => setSliders((s) => ({ ...s, grain: v }))}
+                />
               </div>
             </div>
 
             <div className="mt-6 border-t border-gray-100 pt-5">
+
               <div className="mt-3 flex items-center gap-2">
-                <input id="showDate" type="checkbox" checked={showDate} onChange={(e) => setShowDate(e.target.checked)} />
+                <input
+                  id="showDate"
+                  type="checkbox"
+                  checked={showDate}
+                  onChange={(e) => setShowDate(e.target.checked)}
+                />
                 <label htmlFor="showDate" className="text-sm text-gray-700">
                   Show date
                 </label>
@@ -569,25 +720,23 @@ export default function Fifth() {
             </div>
           </section>
 
-          {/* Column 3 */}
           <section className="flex justify-center lg:justify-start">
             <div className="flex flex-col items-center lg:items-start">
               <div
-                className={[
-                  cfg!.stripWidth,
-                  cfg!.stripAspect,
-                  "rounded-none",
+                className={cx(
+                  cfg.stripWidth,
+                  cfg.stripAspect,
                   "border border-gray-200 shadow-[0_18px_40px_rgba(0,0,0,0.10)]",
-                  cfg!.paperPadding,
-                  "relative bg-white",
-                ].join(" ")}
+                  cfg.paperPadding,
+                  "relative bg-white"
+                )}
                 style={paperStyle}
               >
-                <div className={[previewClassName, "h-full w-full relative z-[1]"].join(" ")}>
+                <div className={cx(previewClassName, "h-full w-full relative z-[1]")}>
                   {Array.from({ length: slots }).map((_, slotIndex) => {
                     const src = data.favorites[slotIndex];
                     return (
-                      <div key={slotIndex} className="relative overflow-hidden bg-black/5 border border-black/10 rounded-none">
+                      <div key={slotIndex} className="relative overflow-hidden bg-black/5 border border-black/10">
                         {src ? (
                           <>
                             {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -596,6 +745,7 @@ export default function Fifth() {
                               alt={`Photo ${slotIndex + 1}`}
                               className="w-full h-full object-cover object-center"
                               style={imgFilterStyle}
+                              draggable={false}
                             />
                             {sliders.fade > 0 && (
                               <div
@@ -609,7 +759,9 @@ export default function Fifth() {
                             )}
                           </>
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">Empty</div>
+                          <div className="w-full h-full flex items-center justify-center text-xs text-gray-400">
+                            Empty
+                          </div>
                         )}
                       </div>
                     );
@@ -638,7 +790,10 @@ export default function Fifth() {
                     <div
                       className="mt-1 text-[9px] tabular-nums"
                       style={{
-                        color: themeVars.ink === "#ffffff" ? "rgba(255,255,255,0.78)" : "rgba(17,24,39,0.58)",
+                        color:
+                          themeVars.ink === "#ffffff"
+                            ? "rgba(255,255,255,0.78)"
+                            : "rgba(17,24,39,0.58)",
                       }}
                     >
                       {new Date(data.createdAt || Date.now()).toLocaleDateString()}
