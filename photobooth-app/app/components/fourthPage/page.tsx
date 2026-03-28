@@ -115,7 +115,7 @@ export default function Fourth() {
       })
     );
 
-    router.push("/pages/fifth");
+    router.push("/components/fifthPage");
   }
 
   if (!frame || !slots) {

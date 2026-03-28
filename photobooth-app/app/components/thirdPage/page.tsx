@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useCameraCapture } from "./functions";
 
 type FacingMode = "user" | "environment";
 
@@ -22,146 +23,35 @@ export default function Third() {
   const router = useRouter();
 
   const [facingMode, setFacingMode] = useState<FacingMode>("user");
-  const [ready, setReady] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [photos, setPhotos] = useState<string[]>([]);
 
-  // shutter effect
-  const [isShuttering, setIsShuttering] = useState(false);
-  const shutterTimeoutRef = useRef<number | null>(null);
+  const {
+    // state
+    photos,
+    ready,
+    error,
+    isShuttering,
+    showShotsPopup,
+    isAuto,
+    countdown,
+    canTakeMore,
+    controlsLocked,
 
-  // popup gate
-  const [showShotsPopup, setShowShotsPopup] = useState(true);
+    // setters (only what this component needs)
+    setError,
+    setReady,
+    setShowShotsPopup,
 
-  // auto shutter + countdown
-  const [isAuto, setIsAuto] = useState(false);
-  const [countdown, setCountdown] = useState<number | null>(null);
+    // refs
+    videoRef,
+    streamRef,
 
-  const videoRef = useRef<HTMLVideoElement | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-
-  // timers
-  const countdownRef = useRef<number | null>(null);
-
-  // synchronous guards
-  const isAutoRef = useRef(false);
-  const isCapturingRef = useRef(false);
-
-  const canTakeMore = photos.length < MAX_SHOTS;
-  const controlsLocked = showShotsPopup || !!error;
-
-  function stopStream() {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach((t) => t.stop());
-      streamRef.current = null;
-    }
-    if (videoRef.current) {
-      videoRef.current.srcObject = null;
-    }
-  }
-
-  function stopAuto() {
-    if (countdownRef.current) window.clearInterval(countdownRef.current);
-    countdownRef.current = null;
-
-    isAutoRef.current = false;
-    setIsAuto(false);
-    setCountdown(null);
-  }
-
-  function persistShots(next: string[]) {
-    try {
-      localStorage.setItem(SHOTS_KEY, JSON.stringify(next));
-    } catch {
-      // ignore
-    }
-  }
-
-  function triggerShutter() {
-    if (shutterTimeoutRef.current) window.clearTimeout(shutterTimeoutRef.current);
-
-    setIsShuttering(true);
-    shutterTimeoutRef.current = window.setTimeout(() => {
-      setIsShuttering(false);
-      shutterTimeoutRef.current = null;
-    }, 120);
-  }
-
-  function capture() {
-    if (isCapturingRef.current) return;
-    if (!videoRef.current) return;
-    if (!ready) return;
-    if (!canTakeMore) return;
-
-    isCapturingRef.current = true;
-
-    try {
-      const video = videoRef.current;
-
-      const canvas = document.createElement("canvas");
-      const w = video.videoWidth || 1280;
-      const h = video.videoHeight || 720;
-      canvas.width = w;
-      canvas.height = h;
-
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return;
-
-      triggerShutter();
-
-      // mirror for selfie camera
-      if (facingMode === "user") {
-        ctx.translate(w, 0);
-        ctx.scale(-1, 1);
-      }
-
-      ctx.drawImage(video, 0, 0, w, h);
-
-      const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
-
-      setPhotos((prev) => {
-        if (prev.length >= MAX_SHOTS) return prev;
-        if (prev[prev.length - 1] === dataUrl) return prev;
-
-        const next = [...prev, dataUrl].slice(0, MAX_SHOTS);
-        persistShots(next);
-
-        if (next.length >= MAX_SHOTS) stopAuto();
-        return next;
-      });
-    } finally {
-      window.setTimeout(() => {
-        isCapturingRef.current = false;
-      }, 180);
-    }
-  }
-
-  function startAuto() {
-    if (isAutoRef.current) return;
-    if (!ready) return;
-    if (!canTakeMore) return;
-
-    isAutoRef.current = true;
-    setIsAuto(true);
-
-    setCountdown(5);
-
-    if (countdownRef.current) window.clearInterval(countdownRef.current);
-
-    countdownRef.current = window.setInterval(() => {
-      setCountdown((c) => {
-        const current = c ?? 5;
-        const next = current - 1;
-
-        if (next <= 0) {
-          capture();
-          return 5;
-        }
-
-        return next;
-      });
-    }, 1000);
-  }
+    // actions
+    stopAuto,
+    stopStream,
+    startAuto,
+    capture,
+    persistShots,
+  } = useCameraCapture();
 
   async function startCamera(mode: FacingMode) {
     setError(null);
@@ -203,7 +93,7 @@ export default function Third() {
     }
   }
 
-  // init
+  // init + cleanup
   useEffect(() => {
     try {
       localStorage.removeItem(SHOTS_KEY);
@@ -214,11 +104,6 @@ export default function Third() {
     return () => {
       stopAuto();
       stopStream();
-
-      if (shutterTimeoutRef.current) {
-        window.clearTimeout(shutterTimeoutRef.current);
-        shutterTimeoutRef.current = null;
-      }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -236,12 +121,7 @@ export default function Third() {
         frame = null;
       }
 
-      if (!frame?.slots) {
-        router.replace("/pages/second");
-        return;
-      }
-
-      router.replace("/pages/fourth");
+      router.replace("/components/fourthPage");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [photos.length]);
@@ -415,7 +295,6 @@ export default function Third() {
                     Snap
                   </button>
                 </div>
-
               </div>
 
               {/* Helper line */}
@@ -447,7 +326,7 @@ export default function Third() {
 
             <div className="mt-6 flex items-center justify-end gap-2">
               <Link
-                href="/pages/second"
+                href="/components/secondPage"
                 className="rounded-full border border-gray-200 px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
               >
                 Cancel

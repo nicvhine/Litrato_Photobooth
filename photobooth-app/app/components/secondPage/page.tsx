@@ -65,15 +65,12 @@ export default function Second() {
       return;
     }
 
-    // Optional but recommended: wipe any old/bad cached frame value first
-    // (prevents issues from previous typo like previewCLassName)
     try {
       localStorage.removeItem(FRAME_KEY);
     } catch {
       // ignore
     }
 
-    // ✅ Correctly store previewClassName (exact casing)
     try {
       localStorage.setItem(
         FRAME_KEY,
@@ -86,7 +83,6 @@ export default function Second() {
         })
       );
     } catch {
-      // ignore (storage may be blocked/full)
       e.preventDefault();
     }
   }
@@ -154,7 +150,7 @@ export default function Second() {
           </Link>
 
           <Link
-            href={selected ? "/pages/third" : "#"}
+            href={selected ? "/components/thirdPage" : "#"}
             onClick={saveFrameAndGo}
             aria-disabled={!selected}
             tabIndex={!selected ? -1 : 0}

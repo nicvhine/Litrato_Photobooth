@@ -1,9 +1,5 @@
-import First from "./pages/first/page";
+import First from "./components/firstPage/page";
 
 export default function Home() {
-  return (
-    <div>
-      <First />
-    </div>
-  );
+  return <First />;
 }
