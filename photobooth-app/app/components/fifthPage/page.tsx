@@ -545,7 +545,7 @@ export default function Fifth() {
           <p className="mt-1 text-sm text-gray-600">Go back and select your favorites first.</p>
           <div className="mt-4">
             <Link
-              href="/pages/fourth"
+              href="/components/fourthPage"
               className="text-sm text-gray-700 hover:text-gray-900 underline underline-offset-4"
             >
               Back to selection
@@ -570,7 +570,7 @@ export default function Fifth() {
 
           <div className="flex items-center gap-3">
             <Link
-              href="/pages/fourth"
+              href="/components/fourthPage"
               className="text-sm text-gray-700 hover:text-gray-900 underline underline-offset-4"
             >
               Back

@@ -128,7 +128,7 @@ export default function Fourth() {
           </p>
           <div className="mt-5">
             <Link
-              href="/pages/second"
+              href="/components/secondPage"
               className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
             >
               ← Go to frames
@@ -147,13 +147,13 @@ export default function Fourth() {
           <p className="mt-1 text-sm text-gray-600">Please take your photos again.</p>
           <div className="mt-5 flex flex-wrap gap-3">
             <Link
-              href="/pages/third"
+              href="/components/thirdPage"
               className="inline-flex items-center justify-center rounded-full bg-red-600 px-5 py-2 text-sm font-semibold text-white hover:bg-red-700 shadow-sm shadow-red-600/15"
             >
               Retake
             </Link>
             <Link
-              href="/pages/second"
+              href="/components/secondPage"
               className="inline-flex items-center justify-center rounded-full border border-gray-200 bg-white px-5 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50"
             >
               Back
@@ -177,7 +177,7 @@ export default function Fourth() {
         <header className="flex flex-wrap items-start justify-between gap-4">
           <div className="min-w-[240px]">
             <Link
-              href="/pages/third"
+              href="/components/thirdPage"
               className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
             >
               <span aria-hidden="true">←</span>

@@ -146,7 +146,7 @@ export default function Third() {
         {/* Top bar */}
         <header className="flex items-center justify-between gap-4">
           <Link
-            href="/pages/second"
+            href="/components/secondPage"
             className="inline-flex items-center gap-2 text-sm font-medium text-gray-600 hover:text-gray-900"
           >
             <span aria-hidden="true">←</span>
@@ -235,7 +235,7 @@ export default function Third() {
                         Try again
                       </button>
                       <Link
-                        href="/pages/second"
+                        href="/components/secondPage"
                         className="rounded-full border border-white/25 bg-white/10 px-5 py-2 text-sm font-semibold text-white hover:bg-white/15"
                       >
                         Go back

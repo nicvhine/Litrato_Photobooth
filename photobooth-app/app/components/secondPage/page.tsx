@@ -143,7 +143,7 @@ export default function Second() {
 
         <div className="mt-10 flex items-center justify-between">
           <Link
-            href="/pages/first"
+            href="/components/firstPage"
             className="text-gray-600 hover:text-gray-900 underline underline-offset-4"
           >
             Back
